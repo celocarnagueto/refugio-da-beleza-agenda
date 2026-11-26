@@ -268,21 +268,24 @@
      CÁLCULO DE CARTÃO
      ===================================================================== */
   const cValor = $('#c-valor'), cParc = $('#c-parcelas');
-  let forma = 'credito', bandeira = 'Visa';
+  let forma = 'credito', bandeira = 'Mastercard';
   moneyInput(cValor, calcular);
 
-  // taxa em "pontos-base" inteiros (4,44% => 444) para evitar erro de arredondamento
-  function taxaBP(f, b, n) {
-    if (f === 'pix') return Math.round(window.TAXAS.pix * 10000);
-    const t = window.TAXAS.bandeiras[b][f][n];
-    return Math.round(t * 10000);
+  // Taxas em "pontos-base" inteiros (1,45% => 145). Desconto do banco = intermediação + parcelamento,
+  // cada um arredondado ao centavo sobre o valor da venda (igual ao Simulador de vendas do banco).
+  const faixa = n => n === 1 ? '1' : n <= 6 ? '2-6' : '7-18';
+  function taxas(f, b, n) {
+    const T = window.TAXAS, B = T.bandeiras[b];
+    if (f === 'debito') return { inter: Math.round(B.debito * 100), parc: 0, estimada: false };
+    const inter = Math.round(B.intermediacao[faixa(n)] * 100);
+    const parc = n === 1 ? 0 : Math.round(T.parcelamento[n] * 100);
+    return { inter, parc, estimada: n > 1 && T.parcelamentoEstimado.includes(n) };
   }
-  // valor bruto que precisa ser cobrado para que, descontada a taxa, sobre ao menos o desejado
-  function calcBruto(liq, bp) {
-    let bruto = Math.ceil(liq * 10000 / (10000 - bp));
-    const liquido = g => g - Math.round(g * bp / 10000);
-    while (liquido(bruto) < liq) bruto++;
-    return { bruto, desc: bruto - liquido(bruto), liquido: liquido(bruto) };
+  const descontos = (g, t) => ({ inter: Math.round(g * t.inter / 10000), parc: Math.round(g * t.parc / 10000) });
+  // menor valor a cobrar tal que, descontadas as taxas, sobre ao menos o desejado
+  function calcBruto(liq, t) {
+    let g = Math.max(liq, Math.floor(liq * 10000 / (10000 - t.inter - t.parc)) - 2);
+    for (;; g++) { const d = descontos(g, t); if (g - d.inter - d.parc >= liq) return { bruto: g, ...d, liquido: g - d.inter - d.parc }; }
   }
 
   function fillParcelas() {
@@ -294,10 +297,7 @@
   function setSeg(root, val) {
     $$('button', root).forEach(b => { const on = b.dataset.v === val; b.classList.toggle('on', on); b.setAttribute('aria-checked', on); });
   }
-  function atualizarCampos() {
-    $('#box-bandeira').hidden = forma === 'pix';
-    $('#box-parcelas').hidden = forma !== 'credito';
-  }
+  function atualizarCampos() { $('#box-parcelas').hidden = forma !== 'credito'; }
 
   $('#seg-forma').addEventListener('click', e => {
     const b = e.target.closest('button'); if (!b) return;
@@ -316,26 +316,29 @@
     const res = $('#resultado'), det = $('#det-tabela');
     if (!liq) { res.hidden = true; det.hidden = true; return; }
     const n = forma === 'credito' ? Number(cParc.value) : 1;
-    const bp = taxaBP(forma, bandeira, n);
-    const r = calcBruto(liq, bp);
+    const t = taxas(forma, bandeira, n);
+    const r = calcBruto(liq, t);
 
     $('#r-cobrar').textContent = brl(r.bruto);
-    $('#r-parcelas').textContent = forma === 'pix' ? 'no Pix'
-      : forma === 'debito' ? `no débito · ${bandeira}`
+    $('#r-parcelas').textContent = forma === 'debito' ? `no débito · ${bandeira}`
       : n === 1 ? `no crédito à vista · ${bandeira}` : `no crédito em ${n}x de ≈ ${brl(Math.ceil(r.bruto / n))} · ${bandeira}`;
-    $('#r-taxa').textContent = pct(bp);
-    $('#r-desc').textContent = '− ' + brl(r.desc);
+    $('#r-inter').textContent = `${pct(t.inter)} · − ${brl(r.inter)}`;
+    $('#r-parc-row').hidden = !t.parc;
+    $('#r-parc').textContent = `${pct(t.parc)} · − ${brl(r.parc)}`;
+    $('#r-taxa').textContent = pct(t.inter + t.parc);
     $('#r-liquido').textContent = brl(r.liquido);
+    $('#r-recebe').textContent = forma === 'debito' ? 'na hora' : window.TAXAS.bandeiras[bandeira].recebeCredito;
+    $('#r-aviso').hidden = !t.estimada;
     res.hidden = false;
 
     // tabela com todas as parcelas
     if (forma === 'credito') {
       let h = `<table><thead><tr><th>Parcelas</th><th>Taxa</th><th>Passar</th><th>Parcela</th></tr></thead><tbody>`;
       for (let i = 1; i <= 18; i++) {
-        const b = taxaBP('credito', bandeira, i), c = calcBruto(liq, b);
-        h += `<tr data-n="${i}"${i === n ? ' class="sel"' : ''}><td>${i === 1 ? 'À vista' : i + 'x'}</td><td>${pct(b)}</td><td>${brl(c.bruto)}</td><td>${i === 1 ? '—' : '≈ ' + brl(Math.ceil(c.bruto / i))}</td></tr>`;
+        const ti = taxas('credito', bandeira, i), c = calcBruto(liq, ti);
+        h += `<tr data-n="${i}"${i === n ? ' class="sel"' : ''}><td>${i === 1 ? 'À vista' : i + 'x'}</td><td>${pct(ti.inter + ti.parc)}${ti.estimada ? '*' : ''}</td><td>${brl(c.bruto)}</td><td>${i === 1 ? '—' : '≈ ' + brl(Math.ceil(c.bruto / i))}</td></tr>`;
       }
-      $('#tabela').innerHTML = h + '</tbody></table>';
+      $('#tabela').innerHTML = h + '</tbody></table><p class="hint">* taxa de parcelamento estimada (ainda não conferida no simulador do banco).</p>';
       $('#tab-bandeira').textContent = '· ' + bandeira;
       det.hidden = false;
     } else det.hidden = true;
@@ -353,5 +356,5 @@
     window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
   }
   // permite testes automatizados
-  window.__app = { calcBruto, taxaBP, buildICS, getAppts: () => appts };
+  window.__app = { calcBruto, taxas, descontos, buildICS, getAppts: () => appts };
 })();

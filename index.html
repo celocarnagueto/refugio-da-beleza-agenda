@@ -105,7 +105,6 @@
       <div class="field">
         <span class="lbl">Forma de pagamento</span>
         <div class="seg" id="seg-forma" role="radiogroup">
-          <button type="button" role="radio" data-v="pix">Pix</button>
           <button type="button" role="radio" data-v="debito">Débito</button>
           <button type="button" role="radio" data-v="credito" class="on" aria-checked="true">Crédito</button>
         </div>
@@ -114,8 +113,8 @@
       <div class="field" id="box-bandeira">
         <span class="lbl">Bandeira do cartão</span>
         <div class="seg" id="seg-bandeira" role="radiogroup">
-          <button type="button" role="radio" data-v="Visa" class="on" aria-checked="true">Visa</button>
-          <button type="button" role="radio" data-v="Mastercard">Mastercard</button>
+          <button type="button" role="radio" data-v="Visa">Visa</button>
+          <button type="button" role="radio" data-v="Mastercard" class="on" aria-checked="true">Mastercard</button>
           <button type="button" role="radio" data-v="Elo">Elo</button>
         </div>
       </div>
@@ -130,10 +129,13 @@
       <div class="big" id="r-cobrar">R$ 0,00</div>
       <div class="sub" id="r-parcelas"></div>
       <dl>
+        <div><dt>Intermediação</dt><dd id="r-inter"></dd></div>
+        <div id="r-parc-row"><dt>Parcelamento</dt><dd id="r-parc"></dd></div>
         <div><dt>Taxa total</dt><dd id="r-taxa"></dd></div>
-        <div><dt>Desconto da maquininha</dt><dd id="r-desc"></dd></div>
+        <div><dt>Recebimento</dt><dd id="r-recebe"></dd></div>
         <div class="forte"><dt>Você recebe</dt><dd id="r-liquido"></dd></div>
       </dl>
+      <p class="hint" id="r-aviso" hidden>Taxa de parcelamento estimada para esta parcela (ainda não conferida no banco).</p>
     </div>
 
     <details class="card tabela" id="det-tabela" hidden>
@@ -141,7 +143,7 @@
       <div id="tabela"></div>
     </details>
 
-    <p class="hint rodape">Taxas conforme tabela da maquininha (T.Final + intermediação, recebimento na hora). Confirme com a operadora se houver mudança.</p>
+    <p class="hint rodape">Taxas conforme o Simulador de vendas do banco. Confirme se houver mudança de plano ou de taxas.</p>
   </section>
 </main>
 
