@@ -1,20 +1,20 @@
-// Taxas da maquininha (em %), conforme o Simulador de vendas do banco.
+// Taxas da maquininha (em %), conforme o Simulador de vendas do banco (todas as parcelas conferidas).
 //  - intermediacao: cobrada sobre todo o valor da venda (depende da bandeira e da faixa de parcelas)
 //  - parcelamento: igual para todas as bandeiras; só existe de 2x a 18x. Crédito 1x e débito não têm.
-//  - parcelamentoEstimado: parcelas que NÃO foram lidas direto do banco (calculadas por ajuste). Confirme e corrija aqui se precisar.
+//  - parcelamentoEstimado: parcelas ainda não conferidas no banco (marcadas com * no app). Hoje está vazio.
 //  Para atualizar as taxas, edite este arquivo e aumente a versão CACHE em sw.js.
 window.TAXAS = {
  "parcelamento": {
   "2": 2.1,
   "3": 2.77,
   "4": 3.46,
-  "5": 4.13,
+  "5": 4.12,
   "6": 4.79,
-  "7": 5.46,
+  "7": 5.45,
   "8": 6.1,
   "9": 6.74,
   "10": 7.39,
-  "11": 8.03,
+  "11": 8.02,
   "12": 8.65,
   "13": 9.27,
   "14": 9.89,
@@ -23,17 +23,7 @@ window.TAXAS = {
   "17": 11.71,
   "18": 12.3
  },
- "parcelamentoEstimado": [
-  5,
-  7,
-  8,
-  10,
-  11,
-  13,
-  14,
-  16,
-  17
- ],
+ "parcelamentoEstimado": [],
  "bandeiras": {
   "Visa": {
    "debito": 1.45,

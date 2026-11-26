@@ -1,5 +1,5 @@
 // Service worker: deixa o app abrir sem internet. Aumente a versão ao publicar mudanças.
-const CACHE = 'refugio-agenda-v4';
+const CACHE = 'refugio-agenda-v5';
 const ARQUIVOS = ['./', 'index.html', 'style.css', 'app.js', 'rates.js', 'manifest.webmanifest',
   'img/logo.png', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/maskable-512.png', 'icons/apple-touch-icon.png', 'icons/favicon.png'];
 
