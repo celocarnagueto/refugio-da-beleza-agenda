@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Refúgio da Beleza – Agenda</title>
+<meta name="description" content="Agenda e cálculo de taxas de cartão do Salão Marta Santos – Refúgio da Beleza">
+<meta name="theme-color" content="#120e0c">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/favicon.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Refúgio">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="top">
+  <img src="img/logo.png" alt="Marta Santos – Refúgio da Beleza" class="logo">
+</header>
+
+<main>
+  <!-- ============ AGENDA ============ -->
+  <section id="tab-agenda" class="tab active" aria-label="Agenda">
+    <div id="lembretes" class="lembretes" hidden></div>
+
+    <form id="form" class="card" autocomplete="off" novalidate>
+      <h2 id="form-title">Novo agendamento</h2>
+
+      <label>Cliente
+        <input id="f-nome" type="text" placeholder="Nome da cliente" autocapitalize="words" required>
+      </label>
+
+      <div class="row">
+        <label>Data
+          <input id="f-data" type="date" required>
+        </label>
+        <label>Horário
+          <input id="f-hora" type="time" required>
+        </label>
+      </div>
+
+      <label>Procedimento
+        <input id="f-proc" type="text" list="procs" placeholder="Ex.: Progressiva, Corte, Manicure" required>
+        <datalist id="procs">
+          <option value="Corte">
+          <option value="Escova">
+          <option value="Progressiva">
+          <option value="Coloração">
+          <option value="Mechas / Luzes">
+          <option value="Hidratação">
+          <option value="Cuidados com cacheados">
+          <option value="Manicure">
+          <option value="Pedicure">
+          <option value="Manicure e pedicure">
+          <option value="Depilação">
+          <option value="Sobrancelha">
+        </datalist>
+      </label>
+
+      <label>Valor a cobrar (inicial)
+        <input id="f-valor" type="text" inputmode="numeric" placeholder="R$ 0,00" required>
+      </label>
+
+      <p id="form-erro" class="erro" role="alert" hidden></p>
+
+      <div class="actions">
+        <button type="submit" class="btn primary" id="btn-salvar">Salvar agendamento</button>
+        <button type="button" class="btn ghost" id="btn-cancelar" hidden>Cancelar edição</button>
+      </div>
+      <p class="hint" id="hint-notif">Ao salvar, o agendamento vai para a agenda do celular com aviso <b>1 dia antes</b>.</p>
+    </form>
+
+    <div class="list-head">
+      <h2>Próximos agendamentos</h2>
+    </div>
+    <div id="lista" class="lista"></div>
+
+    <button type="button" class="link" id="btn-anteriores" hidden>Ver agendamentos anteriores</button>
+    <div id="lista-ant" class="lista" hidden></div>
+
+    <details class="backup">
+      <summary>Backup dos dados</summary>
+      <p class="hint">Os agendamentos ficam guardados neste aparelho. Faça um backup de vez em quando.</p>
+      <div class="actions">
+        <button type="button" class="btn ghost" id="btn-exportar">Salvar backup</button>
+        <button type="button" class="btn ghost" id="btn-importar">Restaurar backup</button>
+        <input type="file" id="file-importar" accept="application/json,.json" hidden>
+      </div>
+    </details>
+  </section>
+
+  <!-- ============ CARTÃO ============ -->
+  <section id="tab-cartao" class="tab" aria-label="Cálculo de cartão">
+    <div class="card">
+      <h2>Quanto passar na maquininha?</h2>
+      <p class="hint topo">Digite o valor que você quer <b>receber líquido</b>. O app calcula quanto cobrar para cobrir as taxas.</p>
+
+      <label>Valor que quero receber
+        <input id="c-valor" type="text" inputmode="numeric" placeholder="R$ 0,00" class="grande">
+      </label>
+
+      <div class="field">
+        <span class="lbl">Forma de pagamento</span>
+        <div class="seg" id="seg-forma" role="radiogroup">
+          <button type="button" role="radio" data-v="pix">Pix</button>
+          <button type="button" role="radio" data-v="debito">Débito</button>
+          <button type="button" role="radio" data-v="credito" class="on" aria-checked="true">Crédito</button>
+        </div>
+      </div>
+
+      <div class="field" id="box-bandeira">
+        <span class="lbl">Bandeira do cartão</span>
+        <div class="seg" id="seg-bandeira" role="radiogroup">
+          <button type="button" role="radio" data-v="Visa" class="on" aria-checked="true">Visa</button>
+          <button type="button" role="radio" data-v="Mastercard">Mastercard</button>
+          <button type="button" role="radio" data-v="Elo">Elo</button>
+        </div>
+      </div>
+
+      <label id="box-parcelas">Parcelas
+        <select id="c-parcelas"></select>
+      </label>
+    </div>
+
+    <div id="resultado" class="card resultado" hidden>
+      <span class="lbl">Passe na maquininha</span>
+      <div class="big" id="r-cobrar">R$ 0,00</div>
+      <div class="sub" id="r-parcelas"></div>
+      <dl>
+        <div><dt>Taxa total</dt><dd id="r-taxa"></dd></div>
+        <div><dt>Desconto da maquininha</dt><dd id="r-desc"></dd></div>
+        <div class="forte"><dt>Você recebe</dt><dd id="r-liquido"></dd></div>
+      </dl>
+    </div>
+
+    <details class="card tabela" id="det-tabela" hidden>
+      <summary>Ver todas as parcelas <span id="tab-bandeira"></span></summary>
+      <div id="tabela"></div>
+    </details>
+
+    <p class="hint rodape">Taxas conforme tabela da maquininha (T.Final + intermediação, recebimento na hora). Confirme com a operadora se houver mudança.</p>
+  </section>
+</main>
+
+<nav class="bottom" aria-label="Seções">
+  <button type="button" data-tab="agenda" class="on">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 2v3M17 2v3M3.5 9h17M5 4.5h14A1.5 1.5 0 0 1 20.5 6v13A1.5 1.5 0 0 1 19 20.5H5A1.5 1.5 0 0 1 3.5 19V6A1.5 1.5 0 0 1 5 4.5Z"/></svg>
+    Agenda
+  </button>
+  <button type="button" data-tab="cartao">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5h16A1.5 1.5 0 0 1 21.5 7v10a1.5 1.5 0 0 1-1.5 1.5H4A1.5 1.5 0 0 1 2.5 17V7A1.5 1.5 0 0 1 4 5.5ZM2.5 10h19M6 15h4"/></svg>
+    Cartão
+  </button>
+</nav>
+
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+<script src="rates.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
