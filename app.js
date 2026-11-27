@@ -23,13 +23,13 @@
   }
 
   /* ---------- máscara de dinheiro (digita só números, vira R$ 0,00) ---------- */
+  function maskMoney(el) {
+    const digits = el.value.replace(/\D/g, '').replace(/^0+/, '').slice(0, 9);
+    el.dataset.cents = digits || '0';
+    el.value = digits ? brl(Number(digits)) : '';
+  }
   function moneyInput(el, onChange) {
-    el.addEventListener('input', () => {
-      const digits = el.value.replace(/\D/g, '').replace(/^0+/, '').slice(0, 9);
-      el.dataset.cents = digits || '0';
-      el.value = digits ? brl(Number(digits)) : '';
-      if (onChange) onChange();
-    });
+    el.addEventListener('input', () => { maskMoney(el); if (onChange) onChange(); });
   }
   const getCents = el => Number(el.dataset.cents || 0);
   const setCents = (el, c) => { el.dataset.cents = String(c || 0); el.value = c ? brl(c) : ''; };
@@ -38,6 +38,9 @@
   function showTab(name) {
     const atual = $('.tab.active');
     if (atual && atual.id === 'tab-cartao' && name !== 'cartao') resetCalc();   // volta ao Cartão sempre zerado
+    if (atual && atual.id === 'tab-ganhos' && name !== 'ganhos') resetGanhos();  // Ganhos volta para o dia de hoje
+    if (name === 'agendados') renderAgendados();
+    if (name === 'ganhos') renderGanhos();
     $$('.tab').forEach(t => t.classList.toggle('active', t.id === 'tab-' + name));
     $$('.bottom button').forEach(b => b.classList.toggle('on', b.dataset.tab === name));
     window.scrollTo(0, 0);
@@ -66,43 +69,48 @@
     return txt;
   }
 
-  function cardHTML(a, past) {
-    return `<article class="ag${past ? ' past' : ''}" data-id="${a.id}">
-      <div class="ag-top"><span class="ag-hora">${esc(a.hora)}</span><span class="ag-valor">${a.valor ? brl(a.valor) : ''}</span></div>
+  const aberto = a => a.status !== 'finalizado';
+  const diaCurto = iso => parseDate(iso).toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: '2-digit' }).replace('.', '');
+
+  function cardAberto(a) {
+    return `<article class="ag" data-id="${a.id}">
+      <div class="ag-top"><span class="ag-hora">${esc(a.hora)}</span><span class="ag-dia">${esc(diaCurto(a.data))}</span></div>
       <div class="ag-nome">${esc(a.nome)}</div>
       <div class="ag-proc">${esc(a.proc)}</div>
+      <label class="ag-val">Valor
+        <input class="ag-valor-in" type="text" inputmode="numeric" value="${a.valor ? brl(a.valor) : ''}" data-cents="${a.valor || 0}" aria-label="Valor de ${esc(a.nome)}">
+      </label>
+      <div class="ag-fin">
+        <button type="button" class="btn primary" data-act="fin">✔ Finalizado</button>
+        <button type="button" class="btn danger" data-act="del">Excluir</button>
+      </div>
       <div class="ag-btns">
-        <button data-act="cal">Agenda do celular</button>
-        <button data-act="card">Cobrar no cartão</button>
-        <button data-act="edit">Editar</button>
-        <button data-act="del" class="del">Excluir</button>
+        <button type="button" data-act="cal">Agenda do celular</button>
+        <button type="button" data-act="card">Cobrar no cartão</button>
+        <button type="button" data-act="edit">Editar</button>
       </div></article>`;
   }
 
-  function render() {
+  function renderAgendados() {
     sortAppts();
-    const t = todayISO();
-    const prox = appts.filter(a => a.data >= t);
-    const ant = appts.filter(a => a.data < t).reverse();
-
-    let html = '', last = '';
+    const t = todayISO(), abertos = appts.filter(aberto);
+    const atras = abertos.filter(a => a.data < t), prox = abertos.filter(a => a.data >= t);
+    let html = '';
+    if (atras.length) html += '<div class="dia atraso">Dias anteriores · ainda não finalizados</div>' + atras.map(cardAberto).join('');
+    let last = '';
     for (const a of prox) {
       if (a.data !== last) { html += `<div class="dia">${esc(diaLabel(a.data))}</div>`; last = a.data; }
-      html += cardHTML(a, false);
+      html += cardAberto(a);
     }
-    $('#lista').innerHTML = html || '<p class="vazio">Nenhum agendamento por enquanto.<br>Preencha o formulário acima para marcar o primeiro.</p>';
-
-    const btnAnt = $('#btn-anteriores'), listaAnt = $('#lista-ant');
-    btnAnt.hidden = !ant.length;
-    listaAnt.innerHTML = ant.map(a => `<div class="dia">${esc(diaLabel(a.data))}</div>` + cardHTML(a, true)).join('');
-    if (!ant.length) listaAnt.hidden = true;
-
-    renderLembretes();
+    $('#lista').innerHTML = html || '<p class="vazio">Nenhum agendamento em aberto.<br>Crie um na aba Agenda.</p>';
+    const badge = $('#badge-ag'); badge.textContent = abertos.length; badge.hidden = !abertos.length;
   }
 
+  function render() { sortAppts(); renderAgendados(); renderGanhos(); renderLembretes(); }
+
   function renderLembretes() {
-    const t = todayISO(), amanha = addDays(t, 1);
-    const hoje = appts.filter(a => a.data === t), am = appts.filter(a => a.data === amanha);
+    const t = todayISO(), amanha = addDays(t, 1), ab = appts.filter(aberto);
+    const hoje = ab.filter(a => a.data === t), am = ab.filter(a => a.data === amanha);
     const box = $('#lembretes');
     const linha = (lbl, arr) => arr.length
       ? `<p><b>${lbl}:</b> ${arr.map(a => `${esc(a.hora)} ${esc(a.nome)} (${esc(a.proc)})`).join(' · ')}</p>` : '';
@@ -133,7 +141,7 @@
     if (!valor) return showErro('Informe o valor a cobrar.'), fValor.focus();
     showErro('');
 
-    const conflito = appts.find(a => a.id !== editingId && a.data === data && a.hora === hora);
+    const conflito = appts.find(a => aberto(a) && a.id !== editingId && a.data === data && a.hora === hora);
     if (conflito && !confirm(`Já existe um agendamento às ${hora} nesse dia (${conflito.nome}). Salvar mesmo assim?`)) return;
 
     let a;
@@ -142,7 +150,7 @@
       if (a.data !== data || a.hora !== hora) a.avisado = false;
       Object.assign(a, { nome, data, hora, proc, valor });
     } else {
-      a = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), nome, data, hora, proc, valor, avisado: false };
+      a = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), nome, data, hora, proc, valor, avisado: false, status: 'agendado' };
       appts.push(a);
     }
     if (!save()) toast('Não foi possível gravar neste aparelho. Verifique o armazenamento do navegador.');
@@ -161,11 +169,22 @@
 
   $('#btn-cancelar').addEventListener('click', resetForm);
 
+  /* ---- valor editável no cartão (salva ao sair do campo) ---- */
+  document.addEventListener('input', ev => { if (ev.target.classList.contains('ag-valor-in')) maskMoney(ev.target); });
+  document.addEventListener('focusin', ev => { if (ev.target.classList.contains('ag-valor-in')) { const el = ev.target; setTimeout(() => el.select(), 0); } });
+  document.addEventListener('change', ev => {
+    const el = ev.target; if (!el.classList.contains('ag-valor-in')) return;
+    const a = appts.find(x => x.id === el.closest('.ag').dataset.id); if (!a) return;
+    const c = getCents(el);
+    if (!c) { setCents(el, a.valor); return toast('Informe um valor maior que zero.'); }
+    if (c !== a.valor) { a.valor = c; save(); toast('Valor atualizado: ' + brl(c)); }
+  });
+
   /* ---- ações nos cartões ---- */
   document.addEventListener('click', ev => {
-    const btn = ev.target.closest('.ag-btns button');
+    const btn = ev.target.closest('.ag [data-act]');
     if (!btn) return;
-    const id = btn.closest('.ag').dataset.id, a = appts.find(x => x.id === id);
+    const card = btn.closest('.ag'), id = card.dataset.id, a = appts.find(x => x.id === id);
     if (!a) return;
     const act = btn.dataset.act;
     if (act === 'cal') { downloadICS(a); toast('Abra o arquivo baixado para adicionar à agenda do celular.'); }
@@ -176,18 +195,83 @@
       $('#form-title').textContent = 'Editar agendamento';
       $('#btn-salvar').textContent = 'Atualizar agendamento';
       $('#btn-cancelar').hidden = false;
-      $('#form').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      showTab('agenda');
+      setTimeout(() => $('#form').scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+    } else if (act === 'fin') {
+      const inp = $('.ag-valor-in', card), c = inp ? getCents(inp) : a.valor;
+      if (c) a.valor = c;
+      a.status = 'finalizado'; a.finalizadoEm = new Date().toISOString();
+      save(); render(); toast(`Atendimento finalizado: ${a.nome} · ${brl(a.valor)}`);
+    } else if (act === 'reabrir') {
+      if (confirm(`Voltar o atendimento de ${a.nome} para os agendados?`)) {
+        a.status = 'agendado'; delete a.finalizadoEm; save(); render(); toast('Voltou para os agendados.');
+      }
     } else if (act === 'del') {
-      if (confirm(`Excluir o agendamento de ${a.nome} (${a.hora})?\nSe já estiver na agenda do celular, apague lá também.`)) {
+      if (confirm(`Excluir o agendamento de ${a.nome} (${diaCurto(a.data)} às ${a.hora})?\nSe já estiver na agenda do celular, apague lá também.`)) {
         appts = appts.filter(x => x.id !== id); save(); render(); toast('Agendamento excluído.');
       }
     }
   });
 
-  $('#btn-anteriores').addEventListener('click', () => {
-    const l = $('#lista-ant'); l.hidden = !l.hidden;
-    $('#btn-anteriores').textContent = l.hidden ? 'Ver agendamentos anteriores' : 'Ocultar agendamentos anteriores';
-  });
+  /* =====================================================================
+     GANHOS (atendimentos finalizados por dia, semana ou mês)
+     ===================================================================== */
+  let periodo = 'dia', refGanhos = todayISO();
+  const fmtCurto = iso => { const [y, m, d] = iso.split('-'); return `${d}/${m}`; };
+
+  function faixaGanhos() {
+    const d = parseDate(refGanhos);
+    if (periodo === 'dia') return { ini: refGanhos, fim: refGanhos, label: d.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' }) };
+    if (periodo === 'semana') {
+      const ini = addDays(refGanhos, -((d.getDay() + 6) % 7)), fim = addDays(ini, 6);   // segunda a domingo
+      return { ini, fim, label: `${fmtCurto(ini)} a ${fmtCurto(fim)}/${fim.slice(0, 4)}` };
+    }
+    const ini = isoLocal(new Date(d.getFullYear(), d.getMonth(), 1)), fim = isoLocal(new Date(d.getFullYear(), d.getMonth() + 1, 0));
+    return { ini, fim, label: d.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }) };
+  }
+
+  function renderGanhos() {
+    const f = faixaGanhos();
+    $('#g-label').textContent = f.label.charAt(0).toUpperCase() + f.label.slice(1);
+    $('#g-data').value = refGanhos;
+    $$('#seg-periodo button').forEach(b => { const on = b.dataset.v === periodo; b.classList.toggle('on', on); b.setAttribute('aria-checked', on); });
+    const lista = appts.filter(a => a.status === 'finalizado' && a.data >= f.ini && a.data <= f.fim)
+      .sort((p, q) => (p.data + p.hora).localeCompare(q.data + q.hora));
+    const total = lista.reduce((t, a) => t + (a.valor || 0), 0);
+    $('#g-total').textContent = brl(total);
+    $('#g-qtd').textContent = lista.length + (lista.length === 1 ? ' atendimento' : ' atendimentos');
+    $('#g-media').textContent = lista.length ? 'Média ' + brl(Math.round(total / lista.length)) : '';
+
+    const linha = a => `<article class="ag fim" data-id="${a.id}">
+      <div class="ag-top"><span class="ag-hora">${esc(a.hora)}</span><span class="ag-valor">${brl(a.valor || 0)}</span></div>
+      <div class="ag-nome">${esc(a.nome)}</div><div class="ag-proc">${esc(a.proc)}</div>
+      <div class="ag-btns"><button type="button" data-act="reabrir">Desfazer finalização</button></div></article>`;
+    let html = '', ult = '';
+    if (periodo === 'dia') html = lista.map(linha).join('');
+    else {
+      const porDia = {};
+      lista.forEach(a => (porDia[a.data] = porDia[a.data] || []).push(a));
+      for (const dia of Object.keys(porDia).sort()) {
+        const sub = porDia[dia].reduce((t, a) => t + (a.valor || 0), 0);
+        html += `<div class="dia dia-sub"><span>${esc(diaLabel(dia))}</span><span>${brl(sub)}</span></div>` + porDia[dia].map(linha).join('');
+      }
+    }
+    $('#g-lista').innerHTML = html || '<p class="vazio">Nenhum atendimento finalizado neste período.</p>';
+  }
+
+  function moverGanhos(sentido) {
+    const d = parseDate(refGanhos);
+    if (periodo === 'dia') refGanhos = addDays(refGanhos, sentido);
+    else if (periodo === 'semana') refGanhos = addDays(refGanhos, 7 * sentido);
+    else refGanhos = isoLocal(new Date(d.getFullYear(), d.getMonth() + sentido, 1));
+    renderGanhos();
+  }
+  function resetGanhos() { periodo = 'dia'; refGanhos = todayISO(); renderGanhos(); }
+  $('#seg-periodo').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; periodo = b.dataset.v; renderGanhos(); });
+  $('#g-ant').addEventListener('click', () => moverGanhos(-1));
+  $('#g-prox').addEventListener('click', () => moverGanhos(1));
+  $('#g-hoje').addEventListener('click', resetGanhos);
+  $('#g-data').addEventListener('change', e => { if (e.target.value) { refGanhos = e.target.value; renderGanhos(); } });
 
   /* ---- arquivo de calendário (.ics) com alarme 1 dia antes ---- */
   const icsEsc = s => String(s).replace(/\\/g, '\\\\').replace(/\r?\n/g, '\\n').replace(/;/g, '\\;').replace(/,/g, '\\,');
@@ -237,7 +321,7 @@
     if (!('Notification' in window) || Notification.permission !== 'granted') return;
     const amanha = addDays(todayISO(), 1);
     let mudou = false;
-    appts.filter(a => a.data === amanha && !a.avisado).forEach(a => {
+    appts.filter(a => aberto(a) && a.data === amanha && !a.avisado).forEach(a => {
       notify('Amanhã tem cliente 💛', `${a.hora} – ${a.nome} (${a.proc})`, 'ag-' + a.id);
       a.avisado = true; mudou = true;
     });
@@ -261,7 +345,7 @@
       const lista = (j.agendamentos || []).filter(a => a && a.id && a.nome && /^\d{4}-\d{2}-\d{2}$/.test(a.data) && /^\d{2}:\d{2}$/.test(a.hora));
       if (!lista.length) throw new Error('vazio');
       const ids = new Set(appts.map(a => a.id)); let n = 0;
-      lista.forEach(a => { if (!ids.has(a.id)) { appts.push({ id: String(a.id), nome: String(a.nome), data: a.data, hora: a.hora, proc: String(a.proc || ''), valor: Number(a.valor) || 0, avisado: !!a.avisado }); n++; } });
+      lista.forEach(a => { if (!ids.has(a.id)) { appts.push({ id: String(a.id), nome: String(a.nome), data: a.data, hora: a.hora, proc: String(a.proc || ''), valor: Number(a.valor) || 0, avisado: !!a.avisado, status: a.status === 'finalizado' ? 'finalizado' : 'agendado', finalizadoEm: a.finalizadoEm || '' }); n++; } });
       save(); render(); toast(`Backup restaurado: ${n} agendamento(s) adicionado(s).`);
     } catch (e) { toast('Arquivo de backup inválido.'); }
   });
@@ -270,7 +354,7 @@
      AGENDAMENTO POR VOZ  (fala em qualquer ordem; o entendimento está em voz.js)
      ===================================================================== */
   (function voz() {
-    const micBtn = $('#mic'), orgBtn = $('#organizar'), texto = $('#vozTexto'), status = $('#micstatus'), resumo = $('#vozResumo');
+    const micBtn = $('#mic'), limparBtn = $('#limpar'), orgBtn = $('#organizar'), texto = $('#vozTexto'), status = $('#micstatus'), resumo = $('#vozResumo');
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     let sessao = null;
     const setStatus = t => { status.textContent = t || ''; };
@@ -285,10 +369,10 @@
       return a + ' ' + n;
     }
 
-    if (!SR) {
-      micBtn.hidden = true;
-      setStatus('Este navegador não tem reconhecimento de voz. Toque no microfone do teclado do celular para ditar no campo abaixo e depois em “Organizar”.');
-    } else setStatus('Toque em “Falar agendamento”, diga tudo em qualquer ordem e toque de novo para terminar.');
+    const DICA = SR ? 'Toque em “Falar agendamento”, diga tudo em qualquer ordem e toque de novo para terminar.'
+      : 'Este navegador não tem reconhecimento de voz. Toque no microfone do teclado do celular para ditar no campo abaixo e depois em “Organizar”.';
+    if (!SR) micBtn.hidden = true;
+    setStatus(DICA);
 
     function marcar(ativo) {
       micBtn.classList.toggle('gravando', ativo);
@@ -306,6 +390,7 @@
       rec.lang = 'pt-BR'; rec.continuous = true; rec.interimResults = true; rec.maxAlternatives = 1;
       s.rec = rec;
       rec.onresult = e => {
+        if (sessao !== s) return;
         let inter = '';
         for (let i = e.resultIndex; i < e.results.length; i++) {
           const r = e.results[i];
@@ -350,6 +435,13 @@
       $('#form').scrollIntoView({ behavior: 'smooth', block: 'start' });
       if (falta) setTimeout(() => falta[0].focus({ preventScroll: true }), 400);
     }
+    // desistiu do agendamento: para o microfone e apaga tudo (fala, resumo e campos)
+    function limpar() {
+      if (sessao) { const s = sessao; sessao = null; try { s.rec.abort(); } catch (e) { try { s.rec.stop(); } catch (e2) { /* segue */ } } marcar(false); }
+      texto.value = ''; resumo.hidden = true; resumo.innerHTML = '';
+      resetForm(); setStatus(DICA); toast('Dados do agendamento limpos.');
+    }
+    limparBtn.addEventListener('click', limpar);
     micBtn.addEventListener('click', ouvir);
     orgBtn.addEventListener('click', organizar);
   })();

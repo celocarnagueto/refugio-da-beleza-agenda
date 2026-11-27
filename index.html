@@ -28,7 +28,10 @@
 
     <div class="card voz-box">
       <h2>Agendar por voz</h2>
-      <button type="button" id="mic" class="btn primary mic">🎙️ Falar agendamento</button>
+      <div class="voz-acoes">
+        <button type="button" id="mic" class="btn primary mic">🎙️ Falar agendamento</button>
+        <button type="button" id="limpar" class="btn ghost limpar" aria-label="Limpar dados do agendamento">🧹 Limpar</button>
+      </div>
       <textarea id="vozTexto" rows="3" placeholder="O que você falar aparece aqui. Ex.: “Maria Aparecida, amanhã às duas e meia da tarde, progressiva, trezentos e cinquenta reais”. Você também pode escrever ou ditar pelo teclado e tocar em Organizar."></textarea>
       <button type="button" id="organizar" class="btn ghost">✨ Organizar</button>
       <p class="hint" id="micstatus"></p>
@@ -82,14 +85,6 @@
       <p class="hint" id="hint-notif">Ao salvar, o agendamento vai para a agenda do celular com aviso <b>1 dia antes</b>.</p>
     </form>
 
-    <div class="list-head">
-      <h2>Próximos agendamentos</h2>
-    </div>
-    <div id="lista" class="lista"></div>
-
-    <button type="button" class="link" id="btn-anteriores" hidden>Ver agendamentos anteriores</button>
-    <div id="lista-ant" class="lista" hidden></div>
-
     <details class="backup">
       <summary>Backup dos dados</summary>
       <p class="hint">Os agendamentos ficam guardados neste aparelho. Faça um backup de vez em quando.</p>
@@ -99,6 +94,39 @@
         <input type="file" id="file-importar" accept="application/json,.json" hidden>
       </div>
     </details>
+  </section>
+
+  <!-- ============ AGENDADOS ============ -->
+  <section id="tab-agendados" class="tab" aria-label="Agendados">
+    <h2 class="titulo-tab">Agendamentos em aberto</h2>
+    <p class="hint topo">Ajuste o valor se mudar e toque em <b>Finalizado</b> ao concluir o atendimento. Cancelou? Toque em Excluir.</p>
+    <div id="lista" class="lista"></div>
+  </section>
+
+  <!-- ============ GANHOS ============ -->
+  <section id="tab-ganhos" class="tab" aria-label="Ganhos">
+    <h2 class="titulo-tab">Atendimentos finalizados</h2>
+    <div class="seg" id="seg-periodo" role="radiogroup" aria-label="Período">
+      <button type="button" role="radio" data-v="dia" class="on" aria-checked="true">Dia</button>
+      <button type="button" role="radio" data-v="semana">Semana</button>
+      <button type="button" role="radio" data-v="mes">Mês</button>
+    </div>
+    <div class="g-nav">
+      <button type="button" id="g-ant" class="icone" aria-label="Período anterior">‹</button>
+      <div class="g-centro"><span id="g-label"></span></div>
+      <button type="button" id="g-prox" class="icone" aria-label="Próximo período">›</button>
+    </div>
+    <div class="g-acoes">
+      <label class="g-escolher">Ir para o dia <input type="date" id="g-data"></label>
+      <button type="button" id="g-hoje" class="btn ghost">Hoje</button>
+    </div>
+    <div class="card resultado g-resumo">
+      <span class="lbl">Total recebido</span>
+      <div class="big" id="g-total">R$ 0,00</div>
+      <div class="sub"><span id="g-qtd"></span> <span id="g-media" class="muted"></span></div>
+    </div>
+    <div id="g-lista" class="lista"></div>
+    <p class="hint rodape">Os ganhos são contados na data do atendimento.</p>
   </section>
 
   <!-- ============ CARTÃO ============ -->
@@ -160,6 +188,14 @@
   <button type="button" data-tab="agenda" class="on">
     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 2v3M17 2v3M3.5 9h17M5 4.5h14A1.5 1.5 0 0 1 20.5 6v13A1.5 1.5 0 0 1 19 20.5H5A1.5 1.5 0 0 1 3.5 19V6A1.5 1.5 0 0 1 5 4.5Z"/></svg>
     Agenda
+  </button>
+  <button type="button" data-tab="agendados">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6.5h12M8 12h12M8 17.5h12M4 6.5h.01M4 12h.01M4 17.5h.01"/></svg>
+    Agendados<span class="badge" id="badge-ag" hidden>0</span>
+  </button>
+  <button type="button" data-tab="ganhos">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18M16.5 7.5c-.8-1.2-2.4-1.8-4.5-1.8-2.4 0-4 1.1-4 2.8 0 4 9 1.8 9 6 0 1.800-1.800 2.900-4.500 2.900-2.200 0-3.900-.8-4.800-2.200"/></svg>
+    Ganhos
   </button>
   <button type="button" data-tab="cartao">
     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5h16A1.5 1.5 0 0 1 21.5 7v10a1.5 1.5 0 0 1-1.5 1.5H4A1.5 1.5 0 0 1 2.5 17V7A1.5 1.5 0 0 1 4 5.5ZM2.5 10h19M6 15h4"/></svg>
