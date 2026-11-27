@@ -36,6 +36,8 @@
 
   /* ---------- navegação ---------- */
   function showTab(name) {
+    const atual = $('.tab.active');
+    if (atual && atual.id === 'tab-cartao' && name !== 'cartao') resetCalc();   // volta ao Cartão sempre zerado
     $$('.tab').forEach(t => t.classList.toggle('active', t.id === 'tab-' + name));
     $$('.bottom button').forEach(b => b.classList.toggle('on', b.dataset.tab === name));
     window.scrollTo(0, 0);
@@ -265,6 +267,94 @@
   });
 
   /* =====================================================================
+     AGENDAMENTO POR VOZ  (fala em qualquer ordem; o entendimento está em voz.js)
+     ===================================================================== */
+  (function voz() {
+    const micBtn = $('#mic'), orgBtn = $('#organizar'), texto = $('#vozTexto'), status = $('#micstatus'), resumo = $('#vozResumo');
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    let sessao = null;
+    const setStatus = t => { status.textContent = t || ''; };
+
+    // junta trechos sem duplicar (alguns celulares devolvem o texto acumulado de novo)
+    function juntar(a, n) {
+      a = (a || '').trim(); n = (n || '').trim();
+      if (!n) return a; if (!a) return n;
+      const al = a.toLowerCase(), nl = n.toLowerCase();
+      if (nl.indexOf(al) === 0) return n;
+      if (al.slice(-nl.length) === nl) return a;
+      return a + ' ' + n;
+    }
+
+    if (!SR) {
+      micBtn.hidden = true;
+      setStatus('Este navegador não tem reconhecimento de voz. Toque no microfone do teclado do celular para ditar no campo abaixo e depois em “Organizar”.');
+    } else setStatus('Toque em “Falar agendamento”, diga tudo em qualquer ordem e toque de novo para terminar.');
+
+    function marcar(ativo) {
+      micBtn.classList.toggle('gravando', ativo);
+      micBtn.textContent = ativo ? '⏹ Parar e organizar' : '🎙️ Falar agendamento';
+    }
+    function ouvir() {
+      if (sessao) { sessao.parar = true; try { sessao.rec.stop(); } catch (e) {} setStatus('Finalizando…'); return; }
+      sessao = { acum: '', interim: '', parar: false, reinicios: 0, erro: '' };
+      texto.value = ''; resumo.hidden = true; marcar(true);
+      setStatus('Ouvindo… fale cliente, procedimento, valor, data e horário. Toque de novo para terminar.');
+      iniciar();
+    }
+    function iniciar() {
+      const s = sessao, rec = new SR();
+      rec.lang = 'pt-BR'; rec.continuous = true; rec.interimResults = true; rec.maxAlternatives = 1;
+      s.rec = rec;
+      rec.onresult = e => {
+        let inter = '';
+        for (let i = e.resultIndex; i < e.results.length; i++) {
+          const r = e.results[i];
+          if (r.isFinal) s.acum = juntar(s.acum, r[0].transcript); else inter += r[0].transcript;
+        }
+        s.interim = inter; texto.value = juntar(s.acum, s.interim);
+      };
+      rec.onerror = e => { if (e.error === 'no-speech' || e.error === 'aborted') return; s.parar = true; s.erro = e.error; };
+      rec.onend = () => {
+        if (sessao !== s) return;
+        if (s.interim) { s.acum = juntar(s.acum, s.interim); s.interim = ''; }
+        // o navegador encerra sozinho após silêncio: reinicia até você tocar em parar
+        if (!s.parar && s.reinicios < 8) { s.reinicios++; try { iniciar(); return; } catch (e) { /* segue */ } }
+        finalizar(s);
+      };
+      try { rec.start(); } catch (e) { sessao = null; marcar(false); setStatus('Não foi possível iniciar o microfone. Tente novamente.'); }
+    }
+    function finalizar(s) {
+      sessao = null; marcar(false);
+      const t = juntar(s.acum, s.interim); texto.value = t;
+      if (s.erro === 'not-allowed' || s.erro === 'service-not-allowed') return setStatus('O microfone está bloqueado. Libere a permissão do microfone para este site e tente de novo.');
+      if (s.erro === 'network') return setStatus('O serviço de voz do navegador precisa de internet. Tente novamente.');
+      if (!t) return setStatus('Nenhuma fala foi capturada. Tente novamente.');
+      organizar();
+    }
+
+    const dataBR = iso => parseDate(iso).toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' });
+    function organizar() {
+      const t = texto.value.trim();
+      if (!t) return setStatus('Fale ou escreva o agendamento primeiro.');
+      const r = window.VozAgenda.interpretar(t);
+      // um agendamento novo nunca herda dados do anterior: limpa tudo antes de preencher
+      resetForm();
+      fNome.value = r.nome; fData.value = r.data; fHora.value = r.hora; fProc.value = r.proc; setCents(fValor, r.valor);
+
+      const linhas = [['Cliente', r.nome], ['Data', r.data && dataBR(r.data)], ['Horário', r.hora], ['Procedimento', r.proc], ['Valor', r.valor && brl(r.valor)]];
+      resumo.innerHTML = '<b>Entendi:</b>' + linhas.filter(l => l[1]).map(l => `<p>${l[0]}: ${esc(l[1])}</p>`).join('') +
+        r.alertas.map(a => `<p class="alerta">⚠️ ${esc(a)}</p>`).join('');
+      resumo.hidden = false;
+      setStatus(r.alertas.length ? 'Confira os campos abaixo, complete o que faltou e toque em Salvar.' : 'Tudo certo! Confira os campos abaixo e toque em Salvar agendamento.');
+      const falta = [[fNome, r.nome], [fData, r.data], [fHora, r.hora], [fProc, r.proc], [fValor, r.valor]].find(x => !x[1]);
+      $('#form').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      if (falta) setTimeout(() => falta[0].focus({ preventScroll: true }), 400);
+    }
+    micBtn.addEventListener('click', ouvir);
+    orgBtn.addEventListener('click', organizar);
+  })();
+
+  /* =====================================================================
      CÁLCULO DE CARTÃO
      ===================================================================== */
   const cValor = $('#c-valor'), cParc = $('#c-parcelas');
@@ -347,6 +437,12 @@
     const tr = e.target.closest('tr[data-n]'); if (!tr) return;
     cParc.value = tr.dataset.n; calcular(); window.scrollTo({ top: 0, behavior: 'smooth' });
   });
+
+  function resetCalc() {
+    setCents(cValor, 0); forma = 'credito'; bandeira = 'Mastercard'; cParc.value = '1';
+    setSeg($('#seg-forma'), forma); setSeg($('#seg-bandeira'), bandeira);
+    $('#det-tabela').open = false; atualizarCampos(); calcular();
+  }
 
   /* ---------- início ---------- */
   fillParcelas(); atualizarCampos();

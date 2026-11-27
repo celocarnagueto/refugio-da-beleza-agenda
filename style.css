@@ -95,3 +95,13 @@ input.grande{font-size:1.6rem;font-weight:600;padding:14px;color:var(--gold-2);l
   opacity:0;transform:translateY(10px);pointer-events:none;transition:.25s;z-index:20}
 .toast.show{opacity:1;transform:none}
 @media (prefers-reduced-motion:reduce){.toast{transition:none}}
+
+.voz-box textarea{width:100%;margin:12px 0;padding:12px 14px;font:inherit;font-size:16px;color:var(--text);background:var(--field);border:1px solid var(--line);border-radius:12px;resize:vertical;min-height:84px}
+.voz-box textarea::placeholder{color:#7d6f62}
+.voz-box textarea:focus{outline:2px solid var(--gold-2);outline-offset:2px;border-color:var(--gold)}
+.btn.mic.gravando{background:linear-gradient(180deg,#ff9d8a,#e0553f);color:#fff;animation:pulsa 1.2s infinite}
+@keyframes pulsa{50%{box-shadow:0 0 0 8px rgba(224,85,63,.25)}}
+@media (prefers-reduced-motion:reduce){.btn.mic.gravando{animation:none}}
+.voz-resumo{margin-top:10px;padding:12px 14px;border:1px solid var(--gold-3);border-radius:12px;background:#21190f;font-size:.93rem}
+.voz-resumo p{margin:3px 0}.voz-resumo b{color:var(--gold-2)}.voz-resumo .alerta{color:var(--err)}
+[hidden]{display:none!important}

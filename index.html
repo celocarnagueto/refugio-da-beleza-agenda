@@ -26,6 +26,15 @@
   <section id="tab-agenda" class="tab active" aria-label="Agenda">
     <div id="lembretes" class="lembretes" hidden></div>
 
+    <div class="card voz-box">
+      <h2>Agendar por voz</h2>
+      <button type="button" id="mic" class="btn primary mic">🎙️ Falar agendamento</button>
+      <textarea id="vozTexto" rows="3" placeholder="O que você falar aparece aqui. Ex.: “Maria Aparecida, amanhã às duas e meia da tarde, progressiva, trezentos e cinquenta reais”. Você também pode escrever ou ditar pelo teclado e tocar em Organizar."></textarea>
+      <button type="button" id="organizar" class="btn ghost">✨ Organizar</button>
+      <p class="hint" id="micstatus"></p>
+      <div id="vozResumo" class="voz-resumo" hidden></div>
+    </div>
+
     <form id="form" class="card" autocomplete="off" novalidate>
       <h2 id="form-title">Novo agendamento</h2>
 
@@ -161,6 +170,7 @@
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
 <script src="rates.js"></script>
+<script src="voz.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
